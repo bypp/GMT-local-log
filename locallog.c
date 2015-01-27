@@ -16,8 +16,6 @@
 
 #define CACHE_SIZE 32768			//取页的整数倍大小，这个大小能存放100条日志，以最大85个汉字为一条计算
 
-#define EXE_TITLE " exe: "
-
 #define SVC_TITLE " svc: "
 
 #define DESC_TITLE "desc: "
@@ -34,10 +32,21 @@ int g_localLogIsInit = 0;					//是否初始化
 pthread_mutex_t g_mutex;
 
 //初始化本地日志
-void initLocalLog(const char* pExeName)
+int initLocalLog(const char* pExeName)
 {
-	//保存服务名称
-	strcpy(g_exeName, pExeName);
+	//检查文件名是否正确
+	char* fnspi = strrchr(pExeName, '/');
+
+	if (fnspi)
+	{
+		//保存服务名称
+		strcpy(g_exeName, fnspi + 1);
+	}
+	else
+	{
+		//保存服务名称
+		strcpy(g_exeName, pExeName);
+	}
 
 	//根目录
 	strcpy(g_fullLogPath, LOG_ROOT_PATH);
@@ -52,8 +61,7 @@ void initLocalLog(const char* pExeName)
 		if (mkdir(g_fullLogPath, 0775) == -1)
 		{
 			//如果根目录创建失败
-			perror(g_fullLogPath);
-			return;
+			return errno;
 		}
 	}
 
@@ -66,17 +74,18 @@ void initLocalLog(const char* pExeName)
 	//以读写模式打开文件
 	g_fd = open(g_fullLogPath, O_RDWR | O_APPEND);
 
-	//如果找不到文件
-	if (errno == ENOENT)
+	if (g_fd == -1)
 	{
-		//以读写形式创建日志文件
-		g_fd = open(g_fullLogPath, O_RDWR | O_CREAT, 0664);
-
-	}
-	else if (g_fd == -1)
-	{
-		perror("open");
-		return;
+		//如果找不到文件
+		if (errno == ENOENT)
+		{
+			//以读写形式创建日志文件
+			g_fd = open(g_fullLogPath, O_RDWR | O_CREAT, 0664);
+		}
+		else
+		{
+			return errno;
+		}
 	}
 
 	//初始化互斥锁
@@ -89,12 +98,14 @@ void initLocalLog(const char* pExeName)
 
 	//初始化完成
 	g_localLogIsInit = 1;
+
+	return 0;
 }
 
 //写入本地日志
-void writeLocalLog(const char* pSvcName, const char* pDesc)
+int writeLocalLog(const char* pSvcName, const char* pDesc)
 {
-	if (!g_localLogIsInit) return;
+	if (!g_localLogIsInit) return -1;
 
 	int desclen = strlen(pDesc);
 
@@ -137,12 +148,14 @@ void writeLocalLog(const char* pSvcName, const char* pDesc)
 
 	//解锁线程
 	pthread_mutex_unlock(&g_mutex);
+
+	return 0;
 }
 
 //日志缓冲区中的数据同步到硬盘
-void syncLocalLog()
+int syncLocalLog()
 {
-	if (!g_localLogIsInit) return;
+	if (!g_localLogIsInit) return -1;
 
 	//启动文件互斥锁
 	flock(g_fd, LOCK_EX);
@@ -158,12 +171,14 @@ void syncLocalLog()
 	g_curCacheSize = 0;
 
 	g_catchCount = 0;
+
+	return 0;
 }
 
 //释放本地日志
-void disposeLocalLog()
+int disposeLocalLog()
 {
-	if (!g_localLogIsInit) return;
+	if (!g_localLogIsInit) return -1;
 
 	syncLocalLog();
 
@@ -181,4 +196,6 @@ void disposeLocalLog()
 	g_fd = 0;
 	g_cache = NULL;
 	g_curCacheSize = 0;
+
+	return 0;
 }
