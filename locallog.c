@@ -16,7 +16,7 @@
 
 #define CACHE_SIZE 32768			//取页的整数倍大小，这个大小能存放100条日志，以最大85个汉字为一条计算
 
-#define SVC_TITLE " svc: "
+#define SVC_TITLE "svc: "
 
 #define DESC_TITLE "desc: "
 
@@ -117,9 +117,7 @@ int writeLocalLog(const char* pSvcName, const char* pDesc)
 	char curTime[32] = { 0 };
 
 	//格式化输出日期
-	strftime(curTime, sizeof(curTime), "%Y-%m-%d %H:%M:%S\n", localtime(&t));
-
-	g_cache[g_curCacheSize++] = '\n';
+	strftime(curTime, sizeof(curTime), "%Y-%m-%d %H:%M:%S\t", localtime(&t));
 
 	//向缓存区写入日期
 	memcpy(g_cache + g_curCacheSize, curTime, strlen(curTime));
@@ -131,7 +129,7 @@ int writeLocalLog(const char* pSvcName, const char* pDesc)
 	memcpy(g_cache + g_curCacheSize, pSvcName, strlen(pSvcName));
 	g_curCacheSize += strlen(pSvcName);
 
-	g_cache[g_curCacheSize++] = '\n';
+	g_cache[g_curCacheSize++] = '\t';
 
 	//向缓存区写入日志描述信息
 	memcpy(g_cache + g_curCacheSize, DESC_TITLE, strlen(DESC_TITLE));
